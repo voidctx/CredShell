@@ -16,7 +16,7 @@ impl HmacAlgorithm {
         match s.to_lowercase().as_str() {
             "sha1" | "sha-1" => Ok(Self::Sha1),
             "sha256" | "sha-256" => Ok(Self::Sha256),
-            
+            "sha512" | "sha-512" => Ok(Self::Sha512),
             _ => Err(format!("Unsupported algorithm '{}'. Use sha1, sha256, or sha512.", s)),
         }
     }
