@@ -136,7 +136,24 @@ pub fn load_vault(path: &Path, passphrase: &str) -> Result<Vault, String> {
 
     let mut vault = decrypt_vault(&data, passphrase)?;
 
+    const SEVEN_DAYS_SECS: u64 = 7 * 86400;
+    let expired_count = vault.passkeys.iter().filter(|p| {
+        if let Some(ts) = Vault::parse_bak_timestamp(&p.id) {
+            let now = crate::core::vault::model::now_secs();
+            now >= ts && (now - ts) > SEVEN_DAYS_SECS
+        } else {
+            false
+        }
+    }).count();
 
+    if expired_count > 0 {
+        let snapshot_path = path.with_extension("kdb.pruned_bak");
+        let _ = save_vault_atomic(&snapshot_path, &vault, passphrase);
+        eprintln!("[CredShell Audit] Pruning {} expired backup passkey(s) (>7 days old). Safety snapshot archived at {:?}", expired_count, snapshot_path);
+        if vault.prune_expired_backups(SEVEN_DAYS_SECS) {
+            let _ = save_vault_atomic(path, &vault, passphrase);
+        }
+    }
 
     Ok(vault)
 }
