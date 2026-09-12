@@ -163,4 +163,32 @@ pub fn native_gui_confirm(title: &str, message: &str) -> bool {
     false
 }
 
+#[cfg(target_os = "android")]
+pub fn native_gui_confirm(title: &str, message: &str) -> bool {
+    if let Ok(output) = std::process::Command::new("termux-dialog")
+        .args(&["confirm", "-t", title, "-i", message])
+        .output()
+    {
+        if output.status.success() {
+            let out_str = String::from_utf8_lossy(&output.stdout);
+            if out_str.contains("\"yes\"") || out_str.contains("\"text\": \"yes\"") {
+                return true;
+            } else if out_str.contains("\"no\"") {
+                return false;
+            }
+        }
+    }
 
+    use std::io::{self, Write};
+    eprint!("\x1b[1;33m[CredShell Confirmation]\x1b[0m {}: {} (y/N): ", title, message);
+    let _ = io::stderr().flush();
+    let mut input = String::new();
+    if io::stdin().read_line(&mut input).is_ok() {
+        let trimmed = input.trim().to_lowercase();
+        if trimmed == "y" || trimmed == "yes" {
+            return true;
+        }
+    }
+
+    false
+}
