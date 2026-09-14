@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">CredShell</string>
+    <string name="provider_label">CredShell Authenticator</string>
+    <string name="provider_description">Local-first, zero-cloud passkey authenticator running in Termux</string>
+    <string name="status_connected">Connected to CredShell in Termux</string>
+    <string name="status_offline">Offline: Start Termux and run \'credshell passkey\'</string>
+    <string name="open_termux">Open Termux</string>
+    <string name="check_status">Test Connection</string>
+</resources>
