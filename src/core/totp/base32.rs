@@ -1,5 +1,4 @@
-const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
-const ALPHABET_UPPER: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 pub fn is_ignorable_base32_char(ch: char) -> bool {
     if ch.is_whitespace() || ch.is_control() {
@@ -7,7 +6,7 @@ pub fn is_ignorable_base32_char(ch: char) -> bool {
     }
     match ch {
         '-' | '=' | '_' | ':' | '.' | ',' | '\'' | '"' | '`'
-        | 'â€˜' | 'â€™' | 'â€œ' | 'â€'
+        | '‘' | '’' | '“' | '”'
         | '\u{200B}'..='\u{200F}'
         | '\u{202A}'..='\u{202E}'
         | '\u{2060}'
