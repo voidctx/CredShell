@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_url_decode_utf8_multibyte() {
-        assert_eq!(url_decode("Soci%C3%A9t%C3%A9%20G%C3%A9n%C3%A9rale"), "SociÃ©tÃ© GÃ©nÃ©rale");
-        assert_eq!(url_decode("%E4%BD%A0%E5%A5%BD%E4%B8%96%E7%95%8C"), "ä½ å¥½ä¸–ç•Œ");
+        assert_eq!(url_decode("Soci%C3%A9t%C3%A9%20G%C3%A9n%C3%A9rale"), "Société Générale");
+        assert_eq!(url_decode("%E4%BD%A0%E5%A5%BD%E4%B8%96%E7%95%8C"), "你好世界");
     }
 }
