@@ -13,7 +13,6 @@ pub fn now_secs() -> u64 {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TotpEntry {
     pub id: String,
-    pub custom_label: Option<String>,
     pub name: String,
     pub issuer: String,
     pub account: String,
@@ -28,7 +27,6 @@ pub struct TotpEntry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PasskeyCredential {
     pub id: String,
-    pub custom_label: Option<String>,
     pub rp_id: String,
     pub rp_name: String,
     pub user_name: String,
