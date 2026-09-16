@@ -17,7 +17,7 @@ pub fn escape_json(s: &str) -> String {
 }
 
 pub fn vault_to_json(vault: &Vault) -> String {
-    let mut out = String::with_capacity(1024);
+    let mut out = String::new();
     out.push_str("{\n");
     out.push_str(&format!("  \"version\": {},\n", vault.version));
     out.push_str(&format!("  \"device_name\": \"{}\",\n", escape_json(&vault.device_name)));
