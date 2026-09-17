@@ -98,3 +98,11 @@ pub fn encode_p256_cose_key(public_key_xy: &[u8]) -> Vec<u8> {
     };
 
     let map = CborValue::Map(vec![
+        (CborValue::Unsigned(1), CborValue::Unsigned(2)),
+        (CborValue::Unsigned(3), CborValue::Negative(6)),
+        (CborValue::Negative(0), CborValue::Unsigned(1)),
+        (CborValue::Negative(1), CborValue::ByteString(x)),
+        (CborValue::Negative(2), CborValue::ByteString(y)),
+    ]);
+    map.encode()
+}
