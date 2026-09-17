@@ -738,21 +738,3 @@ Access-Control-Allow-Private-Network: true\r\n",
 Content-Type: application/json; charset=utf-8\r\n\
 {}Content-Length: {}\r\n\
 Connection: close\r\n\r\n{}",
-            status_code,
-            status_text,
-            cors_header,
-            body.len(),
-            body
-        );
-
-        stream.write_all(response.as_bytes()).map_err(|e| e.to_string())?;
-        stream.flush().map_err(|e| e.to_string())?;
-        let _ = stream.shutdown(std::net::Shutdown::Both);
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    fn send_json(stream: &mut TcpStream, status_code: u16, body: &str) -> Result<(), String> {
-        Self::send_json_cors(stream, status_code, body, None)
-    }
-}
