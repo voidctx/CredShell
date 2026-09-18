@@ -199,3 +199,16 @@ pub fn sign_assertion(
     public_key: &[u8],
     auth_data: &[u8],
     client_data_hash: &[u8; 32],
+) -> Result<Vec<u8>, String> {
+    let mut data_to_sign = Vec::with_capacity(auth_data.len() + 32);
+    data_to_sign.extend_from_slice(auth_data);
+    data_to_sign.extend_from_slice(client_data_hash);
+
+    if alg == -8 {
+        Ok(ed25519_sign(private_seed, &data_to_sign).to_vec())
+    } else {
+        let digest = sha256(&data_to_sign);
+        let raw_sig = sign_p256(private_seed, public_key, &digest)?;
+        Ok(p256_sig_to_der(&raw_sig))
+    }
+}
