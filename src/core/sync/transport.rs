@@ -133,13 +133,3 @@ pub fn run_transmitter(
     send_frame(&mut stream, MSG_SYNC_PAYLOAD, &payload)?;
 
     println!("Waiting for recipient approval...");
-    let (msg_type, ack_payload) = read_frame(&mut stream)?;
-    if msg_type == MSG_SYNC_ACK && !ack_payload.is_empty() && ack_payload[0] == 0x01 {
-        println!("\n[████████████████████] 100%");
-        println!("✓ Recipient verified and committed synchronization transaction.");
-    } else {
-        println!("\n✗ Recipient declined or failed to apply transaction.");
-    }
-
-    Ok(())
-}
