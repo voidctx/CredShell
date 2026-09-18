@@ -199,11 +199,3 @@ pub fn rx_handshake(
     let session_key = derive_key_32(&shared_secret, &session_salt, 1000);
     zeroize(&mut shared_secret);
 
-    Ok((
-        PeerInfo {
-            device_name: tx_name,
-            public_key: tx_pubkey,
-        },
-        session_key,
-    ))
-}
