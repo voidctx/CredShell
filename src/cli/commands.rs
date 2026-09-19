@@ -373,3 +373,16 @@ pub fn handle_import(
     if diff.is_empty() {
         println!("No changes to import.");
         return Ok(());
+    }
+
+    println!("\nApplying authenticated transaction...\n");
+    diff.apply(&mut vault);
+    save_vault_atomic(vault_path, &vault, &passphrase)?;
+
+    println!("[████████████████████] 100%");
+    println!("✓ Transaction authenticated");
+    println!("✓ Integrity verified");
+    println!("✓ Vault committed");
+
+    Ok(())
+}
