@@ -330,3 +330,16 @@ fn parse_command(args: &[String]) -> Result<Command, String> {
                 "status" | "info" => Ok(Command::VaultStatus),
                 "create" | "init" => Ok(Command::Init),
                 "change-password" | "passwd" => {
+                    let new_pass = if args.len() > 2 {
+                        Some(args[2].clone())
+                    } else {
+                        None
+                    };
+                    Ok(Command::VaultChangePassword { new_password: new_pass })
+                }
+                _ => Err(format!("Unknown vault command: '{}'. Options: status, create, change-password", args[1])),
+            }
+        }
+        unknown => Err(format!("Unknown command: '{}'. Run 'credshell --help' for usage.", unknown)),
+    }
+}
