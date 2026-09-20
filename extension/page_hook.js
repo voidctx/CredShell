@@ -210,3 +210,11 @@
       if (err.message && (err.message.includes('cancelled') || err.message.includes('declined') || err.message.includes('No passkey found'))) {
         throw new DOMException(err.message, 'NotAllowedError');
       }
+      return originalGet(options);
+    } finally {
+      inFlightOp = false;
+    }
+  };
+
+  console.log('✓ [CredShell] Passkey Authenticator active on ' + window.location.hostname);
+})();
