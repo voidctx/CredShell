@@ -667,11 +667,3 @@ window.addEventListener('message', async (event) => {
 
     throw new Error(`Unknown action: ${action}`);
   } catch (err) {
-    window.postMessage({
-      target: 'credshell-page-hook',
-      id,
-      success: false,
-      error: err.message || 'Operation failed'
-    }, targetOrigin);
-  }
-});
