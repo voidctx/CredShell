@@ -123,11 +123,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!r.ok) {
           const errData = await r.json().catch(() => ({}));
           throw new Error(errData.error || `Authentication declined with HTTP ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-});
