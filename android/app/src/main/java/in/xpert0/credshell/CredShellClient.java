@@ -179,3 +179,11 @@ public class CredShellClient {
                 response.append(line);
             }
         }
+
+        if (statusCode >= 200 && statusCode < 300) {
+            return response.toString();
+        } else {
+            throw new RuntimeException("CredShell error (" + statusCode + "): " + response.toString());
+        }
+    }
+}
