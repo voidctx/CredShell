@@ -270,3 +270,11 @@ public class CredShellCredentialProviderService extends CredentialProviderServic
                     Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
             );
             String derivedOrigin = "android:apk-key-hash:" + b64;
+            Log.i(TAG, "Derived native app origin for " + packageName + ": " + derivedOrigin);
+            return derivedOrigin;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to compute cert SHA-256: " + e);
+            return null;
+        }
+    }
+}
