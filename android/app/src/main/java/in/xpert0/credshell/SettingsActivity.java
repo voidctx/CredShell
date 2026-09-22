@@ -124,9 +124,3 @@ public class SettingsActivity extends Activity {
         checkConnection();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        executor.shutdown();
-    }
-}
