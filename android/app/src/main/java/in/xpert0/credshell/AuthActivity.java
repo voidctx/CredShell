@@ -284,11 +284,3 @@ public class AuthActivity extends Activity {
         } catch (Throwable ignored) {}
 
         return null;
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        executor.shutdown();
-    }
-}
