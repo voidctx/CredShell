@@ -758,3 +758,11 @@ pub mod pure_p256 {
 
         let v = pt.0.sub_mod(&U256::ZERO, &U256::N);
         v == r
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub use windows::{generate_p256_keypair, sign_p256, verify_p256};
+
+#[cfg(not(target_os = "windows"))]
+pub use pure_p256::{generate_p256_keypair, sign_p256, verify_p256};
