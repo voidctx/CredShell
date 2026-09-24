@@ -764,3 +764,11 @@ pub fn x25519(scalar: &[u8; 32], point_u: &[u8; 32]) -> [u8; 32] {
         x3 = da.add(&cb).square();
         z3 = x1.mul(&da.sub(&cb).square());
         x2 = aa.mul(&bb);
+        z2 = e.mul(&aa.add(&a24.mul(&e)));
+    }
+
+    FieldElement::cswap(swap, &mut x2, &mut x3);
+    FieldElement::cswap(swap, &mut z2, &mut z3);
+
+    x2.mul(&z2.invert()).to_bytes()
+}
