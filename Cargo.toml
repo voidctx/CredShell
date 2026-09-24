@@ -1,6 +1,6 @@
 [package]
 name = "credshell"
-version = "0.1.0"
+version = "0.1.0-alpha"
 edition = "2021"
 author = "xpert0"
 description = "Local-first, zero-cloud, manually activated TOTP and passkey authenticator"
