@@ -359,3 +359,11 @@ The lightweight open-source bridge APK is located in `android/`:
 4. CredShell creates the NIST P-256 passkey, saves it to your encrypted vault, and returns the attestation.
 5. WhatsApp confirms: **"Passkey created successfully!"**
 
+---
+
+## Security Guarantees
+
+1. **Zero Memory Leaks**: Sensitive cryptographic buffers and passphrases are zeroized after execution using volatile memory writes and compiler fences.
+2. **Zero Third-Party Telemetry / Network Calls**: The binary does not make outbound network requests. Passkey listening binds strictly to loopback (`127.0.0.1`).
+3. **No Attack Surface from Daemons**: No background daemon is installed. The software runs only when invoked.
+4. **Zero-Crate Supply Chain Security**: With zero dependencies in `Cargo.toml`, CredShell is completely immune to third-party crate vulnerabilities, typosquatting attacks, and malicious dependency updates.
