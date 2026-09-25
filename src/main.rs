@@ -99,6 +99,4 @@ fn main() {
 
     if let Err(err) = result {
         eprintln!("\x1b[1;31mError:\x1b[0m {}", err);
-        process::exit(1);
-    }
 }
