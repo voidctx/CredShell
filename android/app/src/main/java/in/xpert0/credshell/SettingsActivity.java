@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.InputType;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -20,6 +21,7 @@ public class SettingsActivity extends Activity {
     private TextView statusTextView;
     private TextView detailsTextView;
     private EditText endpointEditText;
+    private EditText tunnelPasswordEditText;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -47,6 +49,17 @@ public class SettingsActivity extends Activity {
         endpointEditText.setSingleLine(true);
         layout.addView(endpointEditText);
 
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Tunnel Password:");
+        passwordLabel.setTextSize(14);
+        layout.addView(passwordLabel);
+
+        tunnelPasswordEditText = new EditText(this);
+        tunnelPasswordEditText.setSingleLine(true);
+        tunnelPasswordEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        tunnelPasswordEditText.setHint("Leave empty for local mode");
+        layout.addView(tunnelPasswordEditText);
+
         statusTextView = new TextView(this);
         statusTextView.setText("Checking connection to socket...");
         statusTextView.setTextSize(16);
@@ -66,6 +79,8 @@ public class SettingsActivity extends Activity {
             if (!url.isEmpty()) {
                 CredShellClient.setBaseUrl(this, url);
             }
+            CredShellClient.setTunnelPassword(this, tunnelPasswordEditText.getText().toString());
+            tunnelPasswordEditText.setText("");
             checkConnection();
         });
         layout.addView(saveTestButton);

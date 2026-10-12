@@ -22,6 +22,8 @@ fn print_help() {
 
     println!("  \x1b[33mpasskey\x1b[0m");
     println!("    (default) [--port 5209] [-y]            Start active platform authenticator (login & register)");
+    println!("      --tunnel                              Bind on 0.0.0.0 and require tunnel password hash");
+    println!("      --tunnel-password <password>          Set tunnel password (or use CREDSHELL_TUNNEL_PASSWORD)");
     println!("    list                                    List all stored active Passkeys in vault");
     println!("    list-bak                                List all Android replaced backup passkeys");
     println!("    restore <id-bak>                        Restore a backup passkey to active");

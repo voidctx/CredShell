@@ -1,4 +1,47 @@
-const CREDSHELL_BASE = 'http://127.0.0.1:5209';
+const DEFAULT_CREDSHELL_BASE = 'http://127.0.0.1:5209';
+
+function normalizeBaseUrl(value) {
+  const raw = (value || DEFAULT_CREDSHELL_BASE).trim();
+  return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+}
+
+function isLocalBaseUrl(baseUrl) {
+  try {
+    const u = new URL(baseUrl);
+    const host = (u.hostname || '').toLowerCase();
+    return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  } catch (_) {
+    return false;
+  }
+}
+
+async function sha256Hex(input) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function loadConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['base_url', 'tunnel_password_hash'], (cfg) => {
+      resolve({
+        baseUrl: normalizeBaseUrl(cfg.base_url || DEFAULT_CREDSHELL_BASE),
+        tunnelPasswordHash: (cfg.tunnel_password_hash || '').toString().trim().toLowerCase()
+      });
+    });
+  });
+}
+
+function saveConfig(baseUrl, tunnelPasswordHash) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({
+      base_url: normalizeBaseUrl(baseUrl || DEFAULT_CREDSHELL_BASE),
+      tunnel_password_hash: (tunnelPasswordHash || '').toString().trim().toLowerCase()
+    }, resolve);
+  });
+}
 
 function getSenderDomain(sender) {
   const rawUrl = (sender.tab && sender.tab.url) || sender.url;
@@ -47,87 +90,101 @@ function isRpAllowedForDomain(rpId, domain) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id) {
-    sendResponse({ success: false, error: 'Unauthorized sender context' });
-    return false;
-  }
+  (async () => {
+    if (request.action === 'get_config') {
+      const cfg = await loadConfig();
+      sendResponse({
+        success: true,
+        data: {
+          base_url: cfg.baseUrl,
+          requires_password: !isLocalBaseUrl(cfg.baseUrl),
+          has_password_hash: !!cfg.tunnelPasswordHash
+        }
+      });
+      return;
+    }
 
-  if (request.action === 'check_status') {
-    fetch(`${CREDSHELL_BASE}/status`)
-      .then(r => r.json())
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
+    if (request.action === 'set_config') {
+      const baseUrl = request.base_url || DEFAULT_CREDSHELL_BASE;
+      const rawPassword = (request.tunnel_password || '').toString();
+      const hash = rawPassword.trim() ? await sha256Hex(rawPassword) : '';
+      await saveConfig(baseUrl, hash);
+      sendResponse({ success: true, data: { saved: true } });
+      return;
+    }
 
-  const tabDomain = getSenderDomain(sender);
-  const payloadRp = request.payload ? (request.payload.rp_id || request.payload.rpId) : null;
+    if (sender.id !== chrome.runtime.id) {
+      sendResponse({ success: false, error: 'Unauthorized sender context' });
+      return;
+    }
 
-  if (payloadRp && tabDomain && !isRpAllowedForDomain(payloadRp, tabDomain)) {
-    sendResponse({
-      success: false,
-      error: `Security violation: Relying Party '${payloadRp}' does not match active tab '${tabDomain}'`
+    const cfg = await loadConfig();
+    if (!isLocalBaseUrl(cfg.baseUrl) && !cfg.tunnelPasswordHash) {
+      sendResponse({
+        success: false,
+        error: 'Tunnel password is required. Open the extension popup and set a tunnel password.'
+      });
+      return;
+    }
+
+    const tabDomain = getSenderDomain(sender);
+    const payloadRp = request.payload ? (request.payload.rp_id || request.payload.rpId) : null;
+
+    if (payloadRp && tabDomain && !isRpAllowedForDomain(payloadRp, tabDomain)) {
+      sendResponse({
+        success: false,
+        error: `Security violation: Relying Party '${payloadRp}' does not match active tab '${tabDomain}'`
+      });
+      return;
+    }
+
+    const commonHeaders = {
+      'Content-Type': 'application/json',
+      'X-CredShell-Tab-Origin': tabDomain || '',
+      'X-CredShell-Confirmed': (request.user_confirmed === true) ? 'true' : 'false'
+    };
+    if (cfg.tunnelPasswordHash) {
+      commonHeaders['X-CredShell-Password-Hash'] = cfg.tunnelPasswordHash;
+    }
+
+    if (request.action === 'check_status') {
+      const res = await fetch(`${cfg.baseUrl}/status`, { headers: commonHeaders });
+      const body = await res.text();
+      if (!res.ok) {
+        throw new Error(body || `Status check failed with HTTP ${res.status}`);
+      }
+      let data = {};
+      try {
+        data = JSON.parse(body);
+      } catch (_) {}
+      sendResponse({ success: true, data: { ...data, base_url: cfg.baseUrl } });
+      return;
+    }
+
+    const endpointByAction = {
+      webauthn_create: '/webauthn/create',
+      webauthn_query: '/webauthn/query',
+      webauthn_get: '/webauthn/get'
+    };
+    const endpoint = endpointByAction[request.action];
+    if (!endpoint) {
+      throw new Error(`Unknown action: ${request.action}`);
+    }
+
+    const res = await fetch(`${cfg.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: commonHeaders,
+      body: JSON.stringify(request.payload || {})
     });
-    return false;
-  }
 
-  const commonHeaders = {
-    'Content-Type': 'application/json',
-    'X-CredShell-Tab-Origin': tabDomain || '',
-    'X-CredShell-Confirmed': (request.user_confirmed === true) ? 'true' : 'false'
-  };
+    const responseData = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(responseData.error || `Request failed with HTTP ${res.status}`);
+    }
+    sendResponse({ success: true, data: responseData });
+  })().catch((err) => {
+    sendResponse({ success: false, error: err.message || 'Operation failed' });
+  });
 
-  if (request.action === 'webauthn_create') {
-    fetch(`${CREDSHELL_BASE}/webauthn/create`, {
-      method: 'POST',
-      headers: commonHeaders,
-      body: JSON.stringify(request.payload)
-    })
-      .then(async r => {
-        if (!r.ok) {
-          const errData = await r.json().catch(() => ({}));
-          throw new Error(errData.error || `Registration failed with HTTP ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (request.action === 'webauthn_query') {
-    fetch(`${CREDSHELL_BASE}/webauthn/query`, {
-      method: 'POST',
-      headers: commonHeaders,
-      body: JSON.stringify(request.payload)
-    })
-      .then(async r => {
-        if (!r.ok) {
-          const errData = await r.json().catch(() => ({}));
-          throw new Error(errData.error || `Query failed with HTTP ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (request.action === 'webauthn_get') {
-    fetch(`${CREDSHELL_BASE}/webauthn/get`, {
-      method: 'POST',
-      headers: commonHeaders,
-      body: JSON.stringify(request.payload)
-    })
-      .then(async r => {
-        if (!r.ok) {
-          const errData = await r.json().catch(() => ({}));
-          throw new Error(errData.error || `Authentication declined with HTTP ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
+  return true;
 });

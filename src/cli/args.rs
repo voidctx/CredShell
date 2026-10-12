@@ -51,7 +51,12 @@ pub enum Command {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PasskeyAction {
-    Listen { port: u16, auto_approve: bool },
+    Listen {
+        port: u16,
+        auto_approve: bool,
+        tunnel_mode: bool,
+        tunnel_password: Option<String>,
+    },
     List,
     ListBak,
     Restore { id: String },
@@ -209,6 +214,8 @@ fn parse_command(args: &[String]) -> Result<Command, String> {
         "passkey" => {
             let mut port = 5209;
             let mut auto_approve = false;
+            let mut tunnel_mode = false;
+            let mut tunnel_password: Option<String> = None;
             let mut subaction_opt: Option<&str> = None;
             let mut pos_args = Vec::new();
 
@@ -225,6 +232,15 @@ fn parse_command(args: &[String]) -> Result<Command, String> {
                         auto_approve = true;
                         i += 1;
                     }
+                    "--tunnel" => {
+                        tunnel_mode = true;
+                        i += 1;
+                    }
+                    "--tunnel-password" if i + 1 < args.len() => {
+                        tunnel_mode = true;
+                        tunnel_password = Some(args[i + 1].clone());
+                        i += 2;
+                    }
                     arg if !arg.starts_with('-') => {
                         if subaction_opt.is_none() {
                             subaction_opt = Some(arg);
@@ -239,7 +255,12 @@ fn parse_command(args: &[String]) -> Result<Command, String> {
 
             match subaction_opt.unwrap_or("listen") {
                 "listen" => Ok(Command::Passkey {
-                    subaction: Some(PasskeyAction::Listen { port, auto_approve }),
+                    subaction: Some(PasskeyAction::Listen {
+                        port,
+                        auto_approve,
+                        tunnel_mode,
+                        tunnel_password,
+                    }),
                 }),
                 "list" => Ok(Command::Passkey {
                     subaction: Some(PasskeyAction::List),
@@ -271,7 +292,12 @@ fn parse_command(args: &[String]) -> Result<Command, String> {
                     })
                 }
                 _ => Ok(Command::Passkey {
-                    subaction: Some(PasskeyAction::Listen { port, auto_approve }),
+                    subaction: Some(PasskeyAction::Listen {
+                        port,
+                        auto_approve,
+                        tunnel_mode,
+                        tunnel_password,
+                    }),
                 }),
             }
         }

@@ -12,11 +12,14 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Locale;
 
 public class CredShellClient {
     public static final String DEFAULT_SOCKET_URL = "http://127.0.0.1:5209";
     private static final String PREF_NAME = "credshell_config";
     private static final String KEY_SOCKET_URL = "socket_url";
+    private static final String KEY_TUNNEL_PASSWORD_HASH = "tunnel_password_hash";
 
     public static String getBaseUrl(Context context) {
         if (context == null) {
@@ -38,6 +41,27 @@ public class CredShellClient {
         prefs.edit().putString(KEY_SOCKET_URL, cleanUrl).apply();
     }
 
+    public static String getTunnelPasswordHash(Context context) {
+        if (context == null) {
+            return "";
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        String hash = prefs.getString(KEY_TUNNEL_PASSWORD_HASH, "");
+        return hash == null ? "" : hash.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public static void setTunnelPassword(Context context, String password) {
+        if (context == null) {
+            return;
+        }
+        String hash = "";
+        if (password != null && !password.trim().isEmpty()) {
+            hash = sha256Hex(password.trim());
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_TUNNEL_PASSWORD_HASH, hash).apply();
+    }
+
     public static class StatusCheckResult {
         public final boolean success;
         public final int code;
@@ -54,10 +78,18 @@ public class CredShellClient {
 
     public static StatusCheckResult checkStatus(Context context) {
         String base = getBaseUrl(context);
+        String hash = getTunnelPasswordHash(context);
+        if (!isLoopbackBase(base) && hash.isEmpty()) {
+            return new StatusCheckResult(false, 0, "Tunnel password required",
+                    "Set a tunnel password in CredShell app settings before connecting to a tunnel endpoint.");
+        }
         try {
             URL url = new URL(base + "/status");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
+            if (!hash.isEmpty()) {
+                conn.setRequestProperty("X-CredShell-Password-Hash", hash);
+            }
             conn.setConnectTimeout(2500);
             conn.setReadTimeout(2500);
             int code = conn.getResponseCode();
@@ -101,13 +133,13 @@ public class CredShellClient {
     public static String createPasskey(Context context, String requestJson, String origin, String packageName) throws Exception {
         String base = getBaseUrl(context);
         String payload = injectMetadata(requestJson, origin, packageName);
-        return postJson(base + "/webauthn/create", payload);
+        return postJson(context, base + "/webauthn/create", payload);
     }
 
     public static String getPasskey(Context context, String requestJson, String origin, String packageName) throws Exception {
         String base = getBaseUrl(context);
         String payload = injectMetadata(requestJson, origin, packageName);
-        return postJson(base + "/webauthn/get", payload);
+        return postJson(context, base + "/webauthn/get", payload);
     }
 
     public static String createPasskey(Context context, String requestJson, String origin) throws Exception {
@@ -151,11 +183,23 @@ public class CredShellClient {
         }
     }
 
-    private static String postJson(String endpoint, String jsonPayload) throws Exception {
+    private static String postJson(Context context, String endpoint, String jsonPayload) throws Exception {
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        String hash = getTunnelPasswordHash(context);
+        String base = endpoint;
+        int idx = endpoint.indexOf('/', endpoint.indexOf("://") + 3);
+        if (idx > 0) {
+            base = endpoint.substring(0, idx);
+        }
+        if (!isLoopbackBase(base) && hash.isEmpty()) {
+            throw new RuntimeException("Tunnel password is required for non-local endpoints");
+        }
+        if (!hash.isEmpty()) {
+            conn.setRequestProperty("X-CredShell-Password-Hash", hash);
+        }
         conn.setDoOutput(true);
         conn.setConnectTimeout(3000);
         conn.setReadTimeout(90000);
@@ -184,6 +228,32 @@ public class CredShellClient {
             return response.toString();
         } else {
             throw new RuntimeException("CredShell error (" + statusCode + "): " + response.toString());
+        }
+    }
+
+    private static boolean isLoopbackBase(String base) {
+        try {
+            URL url = new URL(base);
+            String host = url.getHost();
+            if (host == null) return false;
+            host = host.trim().toLowerCase(Locale.ROOT);
+            return host.equals("127.0.0.1") || host.equals("localhost") || host.equals("::1");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                sb.append(String.format(Locale.ROOT, "%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
 }
