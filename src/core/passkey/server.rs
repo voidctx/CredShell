@@ -35,9 +35,11 @@ use std::thread;
 #[derive(Clone)]
 pub struct PasskeyListener {
     port: u16,
+    bind_addr: String,
     vault_path: std::path::PathBuf,
     passphrase: String,
     auto_approve: bool,
+    server_password_hash: Option<String>,
 }
 
 impl PasskeyListener {
@@ -46,18 +48,23 @@ impl PasskeyListener {
         vault_path: &Path,
         passphrase: &str,
         auto_approve: bool,
+        bind_addr: &str,
+        server_password_hash: Option<String>,
     ) -> Self {
         Self {
             port,
+            bind_addr: bind_addr.to_string(),
             vault_path: vault_path.to_path_buf(),
             passphrase: passphrase.to_string(),
             auto_approve,
+            server_password_hash,
         }
     }
 
     pub fn run(&self, vault: &mut Vault) -> Result<(), String> {
-        let listener = TcpListener::bind(format!("127.0.0.1:{}", self.port))
-            .map_err(|e| format!("Failed to bind passkey listener on 127.0.0.1:{}: {}", self.port, e))?;
+        let bind_target = format!("{}:{}", self.bind_addr, self.port);
+        let listener = TcpListener::bind(&bind_target)
+            .map_err(|e| format!("Failed to bind passkey listener on {}: {}", bind_target, e))?;
 
         println!("\x1b[1;36m╭──────────────────────────────────────╮\x1b[0m");
         println!("\x1b[1;36m│              \x1b[1mCREDSHELL\x1b[0m               \x1b[1;36m│\x1b[0m");
@@ -65,7 +72,10 @@ impl PasskeyListener {
         println!("\x1b[1;36m│ \x1b[32m●\x1b[0m \x1b[1mPasskey authenticator active\x1b[0m       \x1b[1;36m│\x1b[0m");
         println!("\x1b[1;36m│                                      │\x1b[0m");
         println!("\x1b[1;36m│\x1b[0m Listening for WebAuthn requests...   \x1b[1;36m│\x1b[0m");
-        println!("\x1b[1;36m│\x1b[0m   Loopback: \x1b[1;33mhttp://127.0.0.1:{}\x1b[0m  \x1b[1;36m│\x1b[0m", self.port);
+        println!("\x1b[1;36m│\x1b[0m   Endpoint: \x1b[1;33mhttp://{}:{}\x1b[0m  \x1b[1;36m│\x1b[0m", self.bind_addr, self.port);
+        if self.server_password_hash.is_some() {
+            println!("\x1b[1;36m│\x1b[0m Server auth enabled (password hash)  \x1b[1;36m│\x1b[0m");
+        }
         println!("\x1b[1;36m│                                      │\x1b[0m");
         println!("\x1b[1;36m│\x1b[0m Waiting for browser / app requests.  \x1b[1;36m│\x1b[0m");
         println!("\x1b[1;36m│                                      │\x1b[0m");
@@ -135,6 +145,7 @@ impl PasskeyListener {
         let mut request_origin: Option<String> = None;
         let mut tab_origin: Option<String> = None;
         let mut ext_confirmed = false;
+        let mut password_hash_header: Option<String> = None;
         for line in lines {
             let lower = line.to_lowercase();
             if let Some(val) = lower.strip_prefix("content-length:") {
@@ -145,6 +156,8 @@ impl PasskeyListener {
                 tab_origin = Some(val.trim().to_string());
             } else if let Some(val) = lower.strip_prefix("x-credshell-confirmed:") {
                 ext_confirmed = val.trim().eq_ignore_ascii_case("true");
+            } else if let Some(val) = lower.strip_prefix("x-credshell-password-hash:") {
+                password_hash_header = Some(val.trim().to_string());
             }
         }
 
@@ -170,7 +183,7 @@ impl PasskeyListener {
                     "HTTP/1.1 204 No Content\r\n\
 Access-Control-Allow-Origin: {}\r\n\
 Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CredShell-Tab-Origin, X-CredShell-Confirmed\r\n\
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CredShell-Tab-Origin, X-CredShell-Confirmed, X-CredShell-Password-Hash\r\n\
 Access-Control-Allow-Private-Network: true\r\n\
 Connection: close\r\n\r\n",
                     cors_origin
@@ -184,6 +197,20 @@ Connection: close\r\n\r\n",
             }
             let _ = stream.shutdown(std::net::Shutdown::Both);
             return Ok(());
+        }
+
+        if let Some(expected_hash) = self.server_password_hash.as_deref() {
+            match password_hash_header.as_deref() {
+                Some(provided_hash) if provided_hash.eq_ignore_ascii_case(expected_hash) => {}
+                _ => {
+                    return Self::send_json_cors(
+                        stream,
+                        403,
+                        "{\"error\":\"Missing or invalid server password hash\"}",
+                        request_origin.as_deref(),
+                    );
+                }
+            }
         }
 
         if method == "GET" && (path == "/status" || path == "/") {
@@ -722,7 +749,7 @@ Connection: close\r\n\r\n",
                 format!(
                     "Access-Control-Allow-Origin: {}\r\n\
 Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With\r\n\
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CredShell-Tab-Origin, X-CredShell-Confirmed, X-CredShell-Password-Hash\r\n\
 Access-Control-Allow-Private-Network: true\r\n",
                     origin
                 )

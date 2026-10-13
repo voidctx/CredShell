@@ -22,6 +22,7 @@ fn print_help() {
 
     println!("  \x1b[33mpasskey\x1b[0m");
     println!("    (default) [--port 5209] [-y]            Start active platform authenticator (login & register)");
+    println!("      --server                              Bind on 0.0.0.0 and require password");
     println!("    list                                    List all stored active Passkeys in vault");
     println!("    list-bak                                List all Android replaced backup passkeys");
     println!("    restore <id-bak>                        Restore a backup passkey to active");

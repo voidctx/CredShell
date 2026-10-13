@@ -1,10 +1,11 @@
 use super::args::PasskeyAction;
 use super::output::{print_totp_json, print_totp_result};
+use crate::core::crypto::sha256::sha256;
 use crate::core::sync::blob::{export_blob, stage_blob_import};
 use crate::core::sync::transport::{run_receiver, run_transmitter};
 use crate::core::totp::base32::decode_base32;
 use crate::core::totp::{generate_totp_now, HmacAlgorithm};
-use crate::core::vault::model::Vault;
+use crate::core::vault::model::{hex_encode, Vault};
 use crate::core::vault::storage::{load_vault, save_vault_atomic};
 use crate::platform::{get_default_device_name, prompt_passphrase};
 use std::env;
@@ -204,15 +205,41 @@ pub fn handle_passkey(
                 vault_path,
                 &passphrase,
                 false,
+                "127.0.0.1",
+                None,
             );
             listener.run(&mut vault)?;
         }
-        Some(PasskeyAction::Listen { port, auto_approve }) => {
+        Some(PasskeyAction::Listen {
+            port,
+            auto_approve,
+            server_mode,
+            server_password,
+        }) => {
+            let server_password_hash = if server_mode {
+                let password = match server_password {
+                    Some(p) if !p.trim().is_empty() => p,
+                    _ => match env::var("CREDSHELL_SERVER_PASSWORD") {
+                        Ok(v) if !v.trim().is_empty() => v.trim().to_string(),
+                        _ => prompt_passphrase("Enter server password: ")?,
+                    },
+                };
+                if password.trim().is_empty() {
+                    return Err("Server password cannot be empty".to_string());
+                }
+                Some(hex_encode(&sha256(password.as_bytes())))
+            } else {
+                None
+            };
+
+            let bind_addr = if server_mode { "0.0.0.0" } else { "127.0.0.1" };
             let listener = crate::core::passkey::PasskeyListener::new(
                 port,
                 vault_path,
                 &passphrase,
                 auto_approve,
+                bind_addr,
+                server_password_hash,
             );
             listener.run(&mut vault)?;
         }
