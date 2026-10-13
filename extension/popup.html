@@ -1,30 +1,35 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <style>
     body {
-      width: 260px;
+      width: 300px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
       padding: 16px;
       background: #0d1117;
       color: #f0f6fc;
     }
+
     .header {
       display: flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 12px;
     }
+
     .logo {
       font-size: 20px;
     }
+
     h2 {
       margin: 0;
       font-size: 15px;
       font-weight: 700;
     }
+
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -35,29 +40,80 @@
       font-weight: 600;
       margin-bottom: 12px;
     }
+
     .online {
       background: rgba(46, 160, 67, 0.2);
       color: #3fb950;
       border: 1px solid rgba(46, 160, 67, 0.4);
     }
+
     .offline {
       background: rgba(248, 81, 73, 0.2);
       color: #f85149;
       border: 1px solid rgba(248, 81, 73, 0.4);
     }
+
     .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
     }
-    .online .dot { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-    .offline .dot { background: #f85149; }
+
+    .online .dot {
+      background: #3fb950;
+      box-shadow: 0 0 6px #3fb950;
+    }
+
+    .offline .dot {
+      background: #f85149;
+    }
+
     p {
       font-size: 12px;
       color: #8b949e;
       line-height: 1.4;
       margin: 0 0 10px 0;
     }
+
+    label {
+      display: block;
+      font-size: 12px;
+      margin: 10px 0 4px;
+      color: #c9d1d9;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      color: #f0f6fc;
+      font-size: 12px;
+      padding: 8px;
+      margin-bottom: 6px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid #238636;
+      border-radius: 6px;
+      background: #238636;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    #save-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #8b949e;
+      min-height: 16px;
+    }
+
     code {
       background: rgba(255, 255, 255, 0.1);
       padding: 2px 4px;
@@ -67,6 +123,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="header">
     <span class="logo">🔐</span>
@@ -78,9 +135,16 @@
     <span id="status-text">Checking listener...</span>
   </div>
 
-  <p>Active listener: <code>http://127.0.0.1:5209</code></p>
-  <p>When active, all browser WebAuthn requests (Passkeys) route to CredShell for user verification.</p>
+  <label for="base-url">CredShell Endpoint</label>
+  <input id="base-url" type="text" placeholder="http://127.0.0.1:5209" />
+
+  <label for="server-password">Server Password</label>
+  <input id="server-password" type="password" placeholder="Required for server mode" />
+
+  <button id="save-btn">Save</button>
+  <div id="save-status"></div>
 
   <script src="popup.js"></script>
 </body>
+
 </html>

@@ -3,9 +3,9 @@
   "name": "CredShell",
   "version": "0.1.0",
   "description": "Native WebAuthn & Passkey authenticator for CredShell zero-daemon vault.",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "storage"],
   "host_permissions": [
-    "http://127.0.0.1:5209/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
