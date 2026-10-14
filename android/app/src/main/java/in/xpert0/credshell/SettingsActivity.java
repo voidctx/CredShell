@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.EditText;
+import android.text.InputType;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,6 +21,7 @@ public class SettingsActivity extends Activity {
     private TextView statusTextView;
     private TextView detailsTextView;
     private EditText endpointEditText;
+    private EditText serverPasswordEditText;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -47,6 +49,24 @@ public class SettingsActivity extends Activity {
         endpointEditText.setSingleLine(true);
         layout.addView(endpointEditText);
 
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Server Password");
+        passwordLabel.setTextSize(14);
+        passwordLabel.setPadding(0, 20, 0, 0);
+        layout.addView(passwordLabel);
+
+        serverPasswordEditText = new EditText(this);
+        serverPasswordEditText.setSingleLine(true);
+        serverPasswordEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        serverPasswordEditText.setHint("Enter server password (optional for local)");
+        layout.addView(serverPasswordEditText);
+
+        TextView passwordHint = new TextView(this);
+        passwordHint.setText("Stored locally as SHA-256; leave blank to keep the saved password.");
+        passwordHint.setTextSize(12);
+        passwordHint.setPadding(0, 0, 0, 12);
+        layout.addView(passwordHint);
+
         statusTextView = new TextView(this);
         statusTextView.setText("Checking connection to socket...");
         statusTextView.setTextSize(16);
@@ -65,6 +85,16 @@ public class SettingsActivity extends Activity {
             String url = endpointEditText.getText().toString().trim();
             if (!url.isEmpty()) {
                 CredShellClient.setBaseUrl(this, url);
+            }
+            String password = serverPasswordEditText.getText().toString();
+            if (!password.isEmpty()) {
+                try {
+                    CredShellClient.setServerPassword(this, password);
+                    serverPasswordEditText.setText("");
+                } catch (Exception e) {
+                    Toast.makeText(this, "Could not save server password: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    return;
+                }
             }
             checkConnection();
         });

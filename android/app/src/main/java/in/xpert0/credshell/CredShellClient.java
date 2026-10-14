@@ -12,11 +12,13 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 public class CredShellClient {
     public static final String DEFAULT_SOCKET_URL = "http://127.0.0.1:5209";
     private static final String PREF_NAME = "credshell_config";
     private static final String KEY_SOCKET_URL = "socket_url";
+    private static final String KEY_SERVER_PASSWORD_HASH = "server_password_hash";
 
     public static String getBaseUrl(Context context) {
         if (context == null) {
@@ -36,6 +38,38 @@ public class CredShellClient {
         }
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         prefs.edit().putString(KEY_SOCKET_URL, cleanUrl).apply();
+    }
+
+    public static void setServerPassword(Context context, String password) throws Exception {
+        if (context == null) return;
+        String value = password == null ? "" : password;
+        String hash = value.trim().isEmpty() ? "" : sha256Hex(value);
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_SERVER_PASSWORD_HASH, hash).apply();
+    }
+
+    public static String getServerPasswordHash(Context context) {
+        if (context == null) return "";
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_SERVER_PASSWORD_HASH, "").trim().toLowerCase();
+    }
+
+    private static String sha256Hex(String input) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(input.getBytes(StandardCharsets.UTF_8));
+        StringBuilder out = new StringBuilder(digest.length * 2);
+        for (byte b : digest) {
+            out.append(String.format(java.util.Locale.ROOT, "%02x", b & 0xff));
+        }
+        return out.toString();
+    }
+
+    private static void applyCommonHeaders(HttpURLConnection conn, Context context) {
+        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        String passwordHash = getServerPasswordHash(context);
+        if (!passwordHash.isEmpty()) {
+            conn.setRequestProperty("X-CredShell-Password-Hash", passwordHash);
+        }
     }
 
     public static class StatusCheckResult {
@@ -58,6 +92,7 @@ public class CredShellClient {
             URL url = new URL(base + "/status");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
+            applyCommonHeaders(conn, context);
             conn.setConnectTimeout(2500);
             conn.setReadTimeout(2500);
             int code = conn.getResponseCode();
@@ -101,13 +136,13 @@ public class CredShellClient {
     public static String createPasskey(Context context, String requestJson, String origin, String packageName) throws Exception {
         String base = getBaseUrl(context);
         String payload = injectMetadata(requestJson, origin, packageName);
-        return postJson(base + "/webauthn/create", payload);
+        return postJson(context, base + "/webauthn/create", payload);
     }
 
     public static String getPasskey(Context context, String requestJson, String origin, String packageName) throws Exception {
         String base = getBaseUrl(context);
         String payload = injectMetadata(requestJson, origin, packageName);
-        return postJson(base + "/webauthn/get", payload);
+        return postJson(context, base + "/webauthn/get", payload);
     }
 
     public static String createPasskey(Context context, String requestJson, String origin) throws Exception {
@@ -151,11 +186,11 @@ public class CredShellClient {
         }
     }
 
-    private static String postJson(String endpoint, String jsonPayload) throws Exception {
+    private static String postJson(Context context, String endpoint, String jsonPayload) throws Exception {
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        applyCommonHeaders(conn, context);
         conn.setDoOutput(true);
         conn.setConnectTimeout(3000);
         conn.setReadTimeout(90000);
