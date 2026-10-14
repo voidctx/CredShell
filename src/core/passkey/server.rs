@@ -355,6 +355,9 @@ Connection: close\r\n\r\n",
         } else if is_extension_valid {
             println!("Registration authorized by Browser Extension.");
             true
+        } else if is_android {
+            println!("Registration authorized by Android Application.");
+            true
         } else {
             let msg = format!("Create new Passkey for '{}'?\nUser: {}", rp_id, user_name);
             native_gui_confirm("CredShell Passkey Registration", &msg)
